@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
@@ -32,21 +31,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div>
-            <div className="flex items-center gap-3">
-              <Image
-                src="/logo.png"
-                alt="Duit Log logo"
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded-lg object-cover"
-              />
-              <div>
-                <p className="text-sm text-muted">{t("appName")}</p>
-                <h1 className="text-base font-semibold text-foreground">
-                  {t("welcome")}, {user?.name ?? "User"}
-                </h1>
-              </div>
-            </div>
+            <p className="text-sm text-muted">{t("appName")}</p>
+            <h1 className="text-base font-semibold text-foreground">
+              {t("welcome")}, {user?.name ?? "User"}
+            </h1>
           </div>
 
           <button

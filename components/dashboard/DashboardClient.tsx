@@ -22,11 +22,6 @@ export function DashboardClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const periodLabel = new Intl.DateTimeFormat("id-ID", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(year, month - 1, 1));
-
   const loadDashboard = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -49,17 +44,17 @@ export function DashboardClient() {
     void loadDashboard();
   }, [loadDashboard]);
 
-  const summary = useMemo(() => {
-    return calculateDashboardSummary(transactions);
-  }, [transactions]);
+  const summary = useMemo(() => calculateDashboardSummary(transactions), [transactions]);
 
   const handleExportPdf = useCallback(async () => {
     const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+
     if (!previewWindow) {
       try {
         const blob = await generateDashboardPdfBlob({
           user,
-          periodLabel,
+          month,
+          year,
           transactions,
           summary,
         });
@@ -105,7 +100,6 @@ export function DashboardClient() {
               text-align: center;
             }
             .muted { color: #64748b; font-size: 14px; }
-            iframe { width: 100%; height: 100vh; border: 0; display: block; }
           </style>
         </head>
         <body>
@@ -118,7 +112,8 @@ export function DashboardClient() {
     try {
       const blob = await generateDashboardPdfBlob({
         user,
-        periodLabel,
+        month,
+        year,
         transactions,
         summary,
       });
@@ -135,7 +130,6 @@ export function DashboardClient() {
         window.localStorage.setItem(storageKey, blobUrl);
         previewWindow.location.href = `/reports/preview?id=${encodeURIComponent(previewId)}`;
       } catch {
-        // Fallback for environments where localStorage is unavailable.
         previewWindow.location.href = blobUrl;
       }
     } catch {
@@ -186,7 +180,7 @@ export function DashboardClient() {
       `);
       previewWindow.document.close();
     }
-  }, [periodLabel, summary, transactions, user]);
+  }, [month, summary, transactions, user, year]);
 
   if (isLoading) {
     return <p className="text-sm text-muted">Loading dashboard...</p>;
