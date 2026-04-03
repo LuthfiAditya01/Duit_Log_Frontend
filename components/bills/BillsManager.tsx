@@ -25,6 +25,7 @@ export function BillsManager() {
   const { t, locale } = useLocale();
   const [bills, setBills] = useState<Bill[]>([]);
   const [editing, setEditing] = useState<Bill | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,6 +120,7 @@ export function BillsManager() {
     }
 
     setEditing(null);
+    setIsFormOpen(false);
     await loadBills();
   };
 
@@ -148,6 +150,16 @@ export function BillsManager() {
               {t("manageRecurringBillsWithMonthlyOrYearlyFrequency")}
             </p>
           </div>
+          <button
+            type="button"
+            className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white"
+            onClick={() => {
+              setEditing(null);
+              setIsFormOpen(true);
+            }}
+          >
+            + {t("addBill")}
+          </button>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -174,7 +186,10 @@ export function BillsManager() {
                   <button
                     type="button"
                     className="rounded-md border px-3 py-1 text-sm"
-                    onClick={() => setEditing(bill)}
+                    onClick={() => {
+                      setEditing(bill);
+                      setIsFormOpen(true);
+                    }}
                   >
                     {t("edit")}
                   </button>
@@ -192,86 +207,103 @@ export function BillsManager() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border p-4">
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {editing ? t("editBill") : t("addBill")}
-            </h2>
-            <p className="text-sm text-muted">{t("yearlyBillsRequireASpecificMonthSelection")}</p>
-          </div>
-          {editing && (
-            <button
-              type="button"
-              className="rounded-md border px-3 py-2 text-sm"
-              onClick={() => setEditing(null)}
-            >
-              {t("cancelEditBill")}
-            </button>
-          )}
-        </div>
-
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
-          <Field label={t("name")} error={errors.name?.message}>
-            <input
-              type="text"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("name")}
-            />
-          </Field>
-
-          <Field label={t("amount")} error={errors.amount?.message}>
-            <input
-              type="number"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("amount", { valueAsNumber: true })}
-            />
-          </Field>
-
-          <Field label={t("dueDay")} error={errors.dueDay?.message}>
-            <input
-              type="number"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("dueDay", { valueAsNumber: true })}
-            />
-          </Field>
-
-          <Field label={t("frequency")} error={errors.frequency?.message}>
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("frequency")}
-            >
-              <option value="MONTHLY">{t("monthly")}</option>
-              <option value="YEARLY">{t("yearly")}</option>
-            </select>
-          </Field>
-
-          {frequency === "YEARLY" && (
-            <Field label={t("dueMonth")} error={errors.dueMonth?.message}>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2"
-                {...register("dueMonth", { valueAsNumber: true })}
+      {isFormOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-6">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {editing ? t("editBill") : t("addBill")}
+                </h2>
+                <p className="text-sm text-muted">{t("yearlyBillsRequireASpecificMonthSelection")}</p>
+              </div>
+              <button
+                type="button"
+                className="rounded-md border px-3 py-2 text-sm"
+                onClick={() => {
+                  setEditing(null);
+                  setIsFormOpen(false);
+                }}
               >
-                {monthOptions.map((monthName, index) => (
-                  <option key={monthName} value={index}>
-                    {monthName}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
+                {t("close")}
+              </button>
+            </div>
 
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {isSubmitting ? t("saving") : editing ? t("updateBill") : t("createBill")}
-            </button>
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
+              <Field label={t("name")} error={errors.name?.message}>
+                <input
+                  type="text"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("name")}
+                />
+              </Field>
+
+              <Field label={t("amount")} error={errors.amount?.message}>
+                <input
+                  type="number"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("amount", { valueAsNumber: true })}
+                />
+              </Field>
+
+              <Field label={t("dueDay")} error={errors.dueDay?.message}>
+                <input
+                  type="number"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("dueDay", { valueAsNumber: true })}
+                />
+              </Field>
+
+              <Field label={t("frequency")} error={errors.frequency?.message}>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("frequency")}
+                >
+                  <option value="MONTHLY">{t("monthly")}</option>
+                  <option value="YEARLY">{t("yearly")}</option>
+                </select>
+              </Field>
+
+              {frequency === "YEARLY" && (
+                <Field label={t("dueMonth")} error={errors.dueMonth?.message}>
+                  <select
+                    className="w-full rounded-md border bg-background px-3 py-2"
+                    {...register("dueMonth", { valueAsNumber: true })}
+                  >
+                    {monthOptions.map((monthName, index) => (
+                      <option key={monthName} value={index}>
+                        {monthName}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="rounded-md border border-border px-4 py-2 text-sm"
+                    onClick={() => {
+                      setEditing(null);
+                      setIsFormOpen(false);
+                    }}
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {isSubmitting ? t("saving") : editing ? t("updateBill") : t("createBill")}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
-        </form>
-      </section>
+        </div>
+      ) : null}
     </div>
   );
 }

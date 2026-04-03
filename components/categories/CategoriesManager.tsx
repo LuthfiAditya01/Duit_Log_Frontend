@@ -47,6 +47,7 @@ export function CategoriesManager() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [filter, setFilter] = useState<"all" | "expense" | "income">("all");
   const [editing, setEditing] = useState<Category | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,6 +130,7 @@ export function CategoriesManager() {
     }
 
     setEditing(null);
+    setIsFormOpen(false);
     await loadCategories();
   };
 
@@ -157,15 +159,27 @@ export function CategoriesManager() {
             <p className="text-sm text-muted">{t("manageIncomeAndExpenseLabels")}</p>
           </div>
 
-          <select
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value as typeof filter)}
-          >
-            <option value="all">{t("all")}</option>
-            <option value="expense">{t("expense")}</option>
-            <option value="income">{t("income")}</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              className="rounded-md border bg-background px-3 py-2 text-sm"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value as typeof filter)}
+            >
+              <option value="all">{t("all")}</option>
+              <option value="expense">{t("expense")}</option>
+              <option value="income">{t("income")}</option>
+            </select>
+            <button
+              type="button"
+              className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white"
+              onClick={() => {
+                setEditing(null);
+                setIsFormOpen(true);
+              }}
+            >
+              + {t("addCategory")}
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -196,7 +210,10 @@ export function CategoriesManager() {
                   <button
                     type="button"
                     className="rounded-md border px-3 py-1 text-sm"
-                    onClick={() => setEditing(category)}
+                    onClick={() => {
+                      setEditing(category);
+                      setIsFormOpen(true);
+                    }}
                   >
                     {t("edit")}
                   </button>
@@ -214,101 +231,114 @@ export function CategoriesManager() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border p-4">
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {editing ? t("editCategory") : t("addCategory")}
-            </h2>
-            <p className="text-sm text-muted">
-              {t("choosePresetColorOrAHexValue")}
-            </p>
-          </div>
-          {editing && (
-            <button
-              type="button"
-              className="rounded-md border px-3 py-2 text-sm"
-              onClick={() => setEditing(null)}
-            >
-              {t("cancelEdit")}
-            </button>
-          )}
-        </div>
-
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
-          <Field label={t("name")} error={errors.name?.message}>
-            <input
-              type="text"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("name")}
-            />
-          </Field>
-
-          <Field label={t("type")} error={errors.type?.message}>
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("type")}
-            >
-              <option value="expense">{t("expenseOption")}</option>
-              <option value="income">{t("incomeOption")}</option>
-            </select>
-          </Field>
-
-          <Field label={t("customHexColor")} error={errors.color?.message}>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                className="h-10 w-14 rounded border bg-background p-1"
-                {...register("color")}
-              />
-              <input
-                type="text"
-                className="w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
-                {...register("color")}
-              />
+      {isFormOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-6">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {editing ? t("editCategory") : t("addCategory")}
+                </h2>
+                <p className="text-sm text-muted">
+                  {t("choosePresetColorOrAHexValue")}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-md border px-3 py-2 text-sm"
+                onClick={() => {
+                  setEditing(null);
+                  setIsFormOpen(false);
+                }}
+              >
+                {t("close")}
+              </button>
             </div>
-          </Field>
 
-          <div className="md:col-span-2">
-            <p className="mb-2 text-sm font-medium">{t("presetColorsLabel")}</p>
-            <div className="flex flex-wrap gap-2">
-              {presetColors.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  className={
-                    selectedColor === color
-                      ? "h-8 w-8 rounded-full ring-2 ring-offset-2"
-                      : "h-8 w-8 rounded-full"
-                  }
-                  style={{ backgroundColor: color }}
-                  onClick={() => setValue("color", color, { shouldValidate: true })}
-                  aria-label={t("selectColor").replace("{color}", color)}
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
+              <Field label={t("name")} error={errors.name?.message}>
+                <input
+                  type="text"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("name")}
                 />
-              ))}
-            </div>
-          </div>
+              </Field>
 
-          <label className="flex items-center gap-2 text-sm md:col-span-2">
-            <input type="checkbox" {...register("isVisible")} />
-            {t("visibleCategory")}
-          </label>
+              <Field label={t("type")} error={errors.type?.message}>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("type")}
+                >
+                  <option value="expense">{t("expenseOption")}</option>
+                  <option value="income">{t("incomeOption")}</option>
+                </select>
+              </Field>
 
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {isSubmitting
-                ? t("saving")
-                : editing
-                  ? t("updateCategory")
-                  : t("createCategory")}
-            </button>
+              <Field label={t("customHexColor")} error={errors.color?.message}>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    className="h-10 w-14 rounded border bg-background p-1"
+                    {...register("color")}
+                  />
+                  <input
+                    type="text"
+                    className="w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
+                    {...register("color")}
+                  />
+                </div>
+              </Field>
+
+              <div className="md:col-span-2">
+                <p className="mb-2 text-sm font-medium">{t("presetColorsLabel")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {presetColors.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={
+                        selectedColor === color
+                          ? "h-8 w-8 rounded-full ring-2 ring-offset-2"
+                          : "h-8 w-8 rounded-full"
+                      }
+                      style={{ backgroundColor: color }}
+                      onClick={() => setValue("color", color, { shouldValidate: true })}
+                      aria-label={t("selectColor").replace("{color}", color)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm md:col-span-2">
+                <input type="checkbox" {...register("isVisible")} />
+                {t("visibleCategory")}
+              </label>
+
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="rounded-md border border-border px-4 py-2 text-sm"
+                    onClick={() => {
+                      setEditing(null);
+                      setIsFormOpen(false);
+                    }}
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {isSubmitting ? t("saving") : editing ? t("updateCategory") : t("createCategory")}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
-        </form>
-      </section>
+        </div>
+      ) : null}
     </div>
   );
 }
