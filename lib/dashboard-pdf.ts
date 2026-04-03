@@ -346,8 +346,19 @@ export async function generateDashboardPdfBlob({
   doc.setTextColor(30, 64, 175);
   doc.text("Detail Transaksi", leftX, y);
 
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    const timeA = new Date(a.date).getTime();
+    const timeB = new Date(b.date).getTime();
+
+    if (timeA !== timeB) {
+      return timeA - timeB;
+    }
+
+    return a._id.localeCompare(b._id);
+  });
+
   let runningBalance = saldoAwal;
-  const transactionRows = transactions.map((item) => {
+  const transactionRows = sortedTransactions.map((item) => {
     const isIncome = item.type === "income";
     runningBalance += isIncome ? item.amount : -item.amount;
 
@@ -360,6 +371,12 @@ export async function generateDashboardPdfBlob({
     ];
   });
 
+  const detailRowCount = transactionRows.length > 0 ? transactionRows.length : 1;
+  const useCompactTable = detailRowCount > 18;
+  const bodyFontSize = useCompactTable ? 7.4 : 8.2;
+  const headerFontSize = useCompactTable ? 7.8 : 8.5;
+  const cellPadding = useCompactTable ? 1.6 : 2;
+
   autoTable(doc, {
     startY: y + 3,
     head: [["Tanggal", "Kategori", "Keterangan", "Nominal", "Saldo"]],
@@ -369,8 +386,8 @@ export async function generateDashboardPdfBlob({
         : [["-", "-", "Tidak ada transaksi", "-", money(saldoAwal)]],
     theme: "grid",
     styles: {
-      fontSize: 8.2,
-      cellPadding: 2,
+      fontSize: bodyFontSize,
+      cellPadding,
       lineColor: [229, 231, 235],
       lineWidth: 0.2,
       valign: "middle",
@@ -379,17 +396,17 @@ export async function generateDashboardPdfBlob({
       fillColor: [243, 244, 246],
       textColor: [55, 65, 81],
       fontStyle: "bold",
-      fontSize: 8.5,
+      fontSize: headerFontSize,
     },
     alternateRowStyles: {
       fillColor: [249, 250, 251],
     },
     columnStyles: {
-      0: { cellWidth: 35 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 57 },
-      3: { cellWidth: 24, halign: "right" },
-      4: { cellWidth: 24, halign: "right" },
+      0: { cellWidth: 33 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 67, overflow: "linebreak" },
+      3: { cellWidth: 26, halign: "right" },
+      4: { cellWidth: 26, halign: "right" },
     },
     margin: { left: leftX, right: 14 },
     didParseCell: (hookData) => {

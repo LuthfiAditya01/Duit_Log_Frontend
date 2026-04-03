@@ -213,7 +213,7 @@ export function TransactionsManager() {
                   </span>
                   <button
                     type="button"
-                    className="rounded-md border border-border px-3 py-1 text-sm"
+                    className="rounded-md cursor-pointer border border-border px-3 py-1 text-sm"
                     onClick={() => openTransactionReceipt(item)}
                   >
                     {t("printReceipt")}

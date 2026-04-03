@@ -50,7 +50,49 @@ export function DashboardClient() {
   const summary = useMemo(() => calculateDashboardSummary(transactions), [transactions]);
 
   const handleExportPdf = useCallback(async () => {
-    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+    const closePreviewWindow = (targetWindow: Window) => {
+      try {
+        targetWindow.document.open();
+        targetWindow.document.write(`
+          <!doctype html>
+          <html>
+            <head>
+              <title>Closing tab...</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+            </head>
+            <body>
+              <script>
+                window.close();
+                setTimeout(function () { window.close(); }, 150);
+                setTimeout(function () { window.open('', '_self'); window.close(); }, 400);
+              </script>
+            </body>
+          </html>
+        `);
+        targetWindow.document.close();
+      } catch {
+        // ignore close-render fallback errors
+      }
+
+      setTimeout(() => {
+        if (!targetWindow.closed) {
+          targetWindow.close();
+        }
+      }, 500);
+    };
+
+    const triggerDownload = (blob: Blob, fileName: string) => {
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    };
+
+    const previewWindow = window.open("", "_blank");
 
     if (!previewWindow) {
       try {
@@ -61,14 +103,7 @@ export function DashboardClient() {
           transactions,
           summary,
         });
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = "duit-log-report.pdf";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+        triggerDownload(blob, "duit-log-report.pdf");
       } catch {
         window.alert(t("failedToLoadDashboardData"));
       }
@@ -133,7 +168,9 @@ export function DashboardClient() {
         window.localStorage.setItem(storageKey, blobUrl);
         previewWindow.location.href = `/reports/preview?id=${encodeURIComponent(previewId)}`;
       } catch {
-        previewWindow.location.href = blobUrl;
+        triggerDownload(blob, "duit-log-report.pdf");
+        closePreviewWindow(previewWindow);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
       }
     } catch {
       previewWindow.document.open();
@@ -209,7 +246,7 @@ export function DashboardClient() {
       <div className="flex justify-end">
         <button
           type="button"
-          className="rounded-md border border-border bg-background px-4 py-2 text-sm font-medium"
+          className="rounded-md cursor-pointer border border-border bg-background px-4 py-2 text-sm font-medium"
           onClick={handleExportPdf}
         >
           {t("exportPdf")}
@@ -275,7 +312,7 @@ export function DashboardClient() {
                     </span>
                     <button
                       type="button"
-                      className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground"
+                      className="rounded-md cursor-pointer border border-border px-3 py-1 text-xs font-medium text-foreground"
                       onClick={() => openTransactionReceipt(item)}
                     >
                       {t("printReceipt")}

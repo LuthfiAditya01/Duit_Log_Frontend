@@ -163,25 +163,64 @@ async function generateTransactionReceiptPdfBlob(transaction: TransactionListIte
   doc.setTextColor(100);
   doc.setFontSize(6.5);
   doc.setFont("helvetica", "normal");
-  doc.text("* Simpan bukti ini untuk arsip transaksi.", 12, finalY + 11);
+  const footnoteLines = doc.splitTextToSize(
+    "* Dokumen ini dibuat secara otomatis oleh Duit Log. Dokumen ini sah dan dapat digunakan sebagai bukti transaksi yang valid. Simpan untuk keperluan pencatatan Anda.",
+    126
+  );
+  doc.text(footnoteLines.slice(0, 2), 12, finalY + 11);
 
   return doc.output("blob");
 }
 
 export async function openTransactionReceipt(transaction: TransactionListItem) {
-  const receiptWindow = window.open("", "_blank", "noopener,noreferrer");
+  const closePreviewWindow = (targetWindow: Window) => {
+    try {
+      targetWindow.document.open();
+      targetWindow.document.write(`
+        <!doctype html>
+        <html>
+          <head>
+            <title>Closing tab...</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+          </head>
+          <body>
+            <script>
+              window.close();
+              setTimeout(function () { window.close(); }, 150);
+              setTimeout(function () { window.open('', '_self'); window.close(); }, 400);
+            </script>
+          </body>
+        </html>
+      `);
+      targetWindow.document.close();
+    } catch {
+      // ignore close-render fallback errors
+    }
+
+    setTimeout(() => {
+      if (!targetWindow.closed) {
+        targetWindow.close();
+      }
+    }, 500);
+  };
+
+  const triggerDownload = (blob: Blob, fileName: string) => {
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+  };
+
+  const receiptWindow = window.open("", "_blank");
 
   if (!receiptWindow) {
     try {
       const blob = await generateTransactionReceiptPdfBlob(transaction);
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `receipt-${transaction._id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      triggerDownload(blob, `receipt-${transaction._id}.pdf`);
     } catch {
       window.alert("Gagal membuat receipt PDF. Coba lagi nanti.");
     }
@@ -234,7 +273,9 @@ export async function openTransactionReceipt(transaction: TransactionListItem) {
       window.localStorage.setItem(storageKey, blobUrl);
       receiptWindow.location.href = `/reports/preview?id=${encodeURIComponent(previewId)}`;
     } catch {
-      receiptWindow.location.href = blobUrl;
+      triggerDownload(blob, `receipt-${transaction._id}.pdf`);
+      closePreviewWindow(receiptWindow);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     }
   } catch {
     receiptWindow.document.open();
