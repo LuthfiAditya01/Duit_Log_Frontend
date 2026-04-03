@@ -34,7 +34,7 @@ export function DashboardClient() {
         me(),
         fetchTransactions(month, year),
       ]);
-      setUser(profile.data);
+      setUser(profile);
       setTransactions(list);
     } catch {
       setError(t("failedToLoadDashboardData"));
@@ -196,7 +196,7 @@ export function DashboardClient() {
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard label={t("balance")} value={formatCurrency(user?.balance ?? 0)} />
+        <StatCard label={t("balance")} value={formatCurrency(user?.data?.balance ?? 0)} />
         <StatCard label={t("income")} value={formatCurrency(summary.income)} />
         <StatCard label={t("expense")} value={formatCurrency(summary.expense)} />
         <StatCard
