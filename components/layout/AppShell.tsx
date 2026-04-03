@@ -22,6 +22,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = useLocale();
 
   const onLogout = () => {
+    const shouldLogout = window.confirm(t("confirmLogoutPrompt"));
+    if (!shouldLogout) {
+      return;
+    }
+
     logout();
     router.replace("/login");
   };

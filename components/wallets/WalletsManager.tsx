@@ -149,6 +149,11 @@ export function WalletsManager() {
   };
 
   const onDelete = async (id: string) => {
+    const shouldDelete = window.confirm(t("confirmDeletePrompt"));
+    if (!shouldDelete) {
+      return;
+    }
+
     await deleteWallet(id);
     if (editing?._id === id) {
       setEditing(null);

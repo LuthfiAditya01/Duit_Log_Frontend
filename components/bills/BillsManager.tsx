@@ -125,6 +125,11 @@ export function BillsManager() {
   };
 
   const onDelete = async (id: string) => {
+    const shouldDelete = window.confirm(t("confirmDeletePrompt"));
+    if (!shouldDelete) {
+      return;
+    }
+
     await deleteBill(id);
     if (editing?._id === id) {
       setEditing(null);

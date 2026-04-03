@@ -93,6 +93,11 @@ export function ProfileManager() {
   };
 
   const onPasswordSubmit = async (values: PasswordFormValues) => {
+    const shouldChangePassword = window.confirm(t("confirmChangePasswordPrompt"));
+    if (!shouldChangePassword) {
+      return;
+    }
+
     await changePassword({
       oldPassword: values.oldPassword,
       newPassword: values.newPassword,
@@ -248,7 +253,7 @@ export function ProfileManager() {
             <button
               type="submit"
               disabled={passwordForm.formState.isSubmitting}
-              className="rounded-md bg-danger px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="rounded-md cursor-pointer bg-danger px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
               {passwordForm.formState.isSubmitting
                 ? t("updatingPassword")

@@ -135,6 +135,11 @@ export function CategoriesManager() {
   };
 
   const onDelete = async (id: string) => {
+    const shouldDelete = window.confirm(t("confirmDeletePrompt"));
+    if (!shouldDelete) {
+      return;
+    }
+
     await deleteCategory(id);
     if (editing?._id === id) {
       setEditing(null);

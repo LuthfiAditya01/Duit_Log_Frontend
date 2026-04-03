@@ -131,6 +131,11 @@ export function TransactionsManager() {
   };
 
   const onDelete = async (id: string) => {
+    const shouldDelete = window.confirm(t("confirmDeletePrompt"));
+    if (!shouldDelete) {
+      return;
+    }
+
     await deleteTransaction(id);
     await loadData();
   };
@@ -220,7 +225,7 @@ export function TransactionsManager() {
                   </button>
                   <button
                     type="button"
-                    className="rounded-md border border-danger px-3 py-1 text-sm text-danger"
+                    className="rounded-md cursor-pointer border border-danger px-3 py-1 text-sm text-danger"
                     onClick={() => onDelete(item._id)}
                   >
                     {t("delete")}
