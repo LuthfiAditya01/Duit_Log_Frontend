@@ -92,7 +92,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="w-full cursor-pointer disabled:cursor-not-allowed rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {isSubmitting ? t("loading") : t("login")}
         </button>

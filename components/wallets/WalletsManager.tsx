@@ -11,17 +11,20 @@ import {
   updateWallet,
 } from "@/lib/api/finance";
 import { formatCurrency } from "@/lib/format";
+import { useLocale } from "@/providers/LocaleProvider";
 import type { Wallet } from "@/lib/types";
 
-const walletSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  type: z.enum(["bank", "e-wallet", "cash", "other"]),
-  balance: z.number().min(0, "Balance cannot be negative"),
-  color: z.string().min(1, "Color is required"),
-  isActive: z.boolean(),
-});
+function buildSchema(t: (key: string) => string) {
+  return z.object({
+    name: z.string().min(2, t("nameIsRequired")),
+    type: z.enum(["bank", "e-wallet", "cash", "other"]),
+    balance: z.number().min(0, t("balanceCannotBeNegative")),
+    color: z.string().min(1, t("colorIsRequired")),
+    isActive: z.boolean(),
+  });
+}
 
-type WalletFormValues = z.infer<typeof walletSchema>;
+type WalletFormValues = z.infer<ReturnType<typeof buildSchema>>;
 
 const presetColors = [
   "#2563eb",
@@ -42,6 +45,7 @@ const presetColors = [
 ];
 
 export function WalletsManager() {
+  const { t } = useLocale();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
   const [editing, setEditing] = useState<Wallet | null>(null);
@@ -56,7 +60,7 @@ export function WalletsManager() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<WalletFormValues>({
-    resolver: zodResolver(walletSchema),
+    resolver: zodResolver(buildSchema(t)),
     defaultValues: {
       name: "",
       type: "bank",
@@ -75,11 +79,11 @@ export function WalletsManager() {
     try {
       setWallets(await fetchWallets());
     } catch {
-      setError("Failed to load wallets");
+      setError(t("failedToLoadWallets"));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadWallets();
@@ -94,6 +98,14 @@ export function WalletsManager() {
     }
     return wallets;
   }, [filter, wallets]);
+
+  const walletTypeLabel = (type: Wallet["type"]) => {
+    if (type === "e-wallet") {
+      return t("eWallet");
+    }
+
+    return t(type);
+  };
 
   useEffect(() => {
     if (editing) {
@@ -143,7 +155,7 @@ export function WalletsManager() {
   };
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading wallets...</p>;
+    return <p className="text-sm text-muted">{t("walletsLoading")}</p>;
   }
 
   if (error) {
@@ -155,8 +167,8 @@ export function WalletsManager() {
       <section className="rounded-xl border border-border p-4">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Wallets</h2>
-            <p className="text-sm text-muted">Manage active and inactive wallets</p>
+            <h2 className="text-lg font-semibold">{t("walletsPage")}</h2>
+            <p className="text-sm text-muted">{t("manageActiveAndInactiveWallets")}</p>
           </div>
 
           <select
@@ -164,15 +176,15 @@ export function WalletsManager() {
             value={filter}
             onChange={(event) => setFilter(event.target.value as typeof filter)}
           >
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="all">{t("all")}</option>
+            <option value="active">{t("active")}</option>
+            <option value="inactive">{t("inactive")}</option>
           </select>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visibleWallets.length === 0 ? (
-            <p className="text-sm text-muted">No wallets found.</p>
+            <p className="text-sm text-muted">{t("noWalletsFound")}</p>
           ) : (
             visibleWallets.map((wallet) => (
               <article
@@ -189,7 +201,7 @@ export function WalletsManager() {
                       <h3 className="font-semibold">{wallet.name}</h3>
                     </div>
                     <p className="text-sm text-muted capitalize">
-                      {wallet.type} · {wallet.isActive ? "Active" : "Inactive"}
+                      {walletTypeLabel(wallet.type)} · {wallet.isActive ? t("active") : t("inactive")}
                     </p>
                   </div>
                   <p className="text-sm font-semibold">
@@ -203,14 +215,14 @@ export function WalletsManager() {
                     className="rounded-md border px-3 py-1 text-sm"
                     onClick={() => setEditing(wallet)}
                   >
-                    Edit
+                    {t("edit")}
                   </button>
                   <button
                     type="button"
                     className="rounded-md border border-danger px-3 py-1 text-sm text-danger"
                     onClick={() => onDelete(wallet._id)}
                   >
-                    Delete
+                    {t("delete")}
                   </button>
                 </div>
               </article>
@@ -223,10 +235,10 @@ export function WalletsManager() {
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">
-              {editing ? "Edit Wallet" : "Add Wallet"}
+              {editing ? t("editWallet") : t("addWallet")}
             </h2>
             <p className="text-sm text-muted">
-              Choose a preset color or keep the custom hex picker
+              {t("choosePresetColorOrCustomHexPicker")}
             </p>
           </div>
           {editing && (
@@ -235,13 +247,13 @@ export function WalletsManager() {
               className="rounded-md border px-3 py-2 text-sm"
               onClick={() => setEditing(null)}
             >
-              Cancel edit
+              {t("cancelEdit")}
             </button>
           )}
         </div>
 
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
-          <Field label="Name" error={errors.name?.message}>
+          <Field label={t("name")} error={errors.name?.message}>
             <input
               type="text"
               className="w-full rounded-md border bg-background px-3 py-2"
@@ -249,19 +261,19 @@ export function WalletsManager() {
             />
           </Field>
 
-          <Field label="Type" error={errors.type?.message}>
+          <Field label={t("type")} error={errors.type?.message}>
             <select
               className="w-full rounded-md border bg-background px-3 py-2"
               {...register("type")}
             >
-              <option value="bank">Bank</option>
-              <option value="e-wallet">E-wallet</option>
-              <option value="cash">Cash</option>
-              <option value="other">Other</option>
+              <option value="bank">{t("bank")}</option>
+              <option value="e-wallet">{t("eWallet")}</option>
+              <option value="cash">{t("cash")}</option>
+              <option value="other">{t("other")}</option>
             </select>
           </Field>
 
-          <Field label="Balance" error={errors.balance?.message}>
+          <Field label={t("balance")} error={errors.balance?.message}>
             <input
               type="number"
               className="w-full rounded-md border bg-background px-3 py-2"
@@ -269,7 +281,7 @@ export function WalletsManager() {
             />
           </Field>
 
-          <Field label="Custom color" error={errors.color?.message}>
+          <Field label={t("customColor")} error={errors.color?.message}>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -285,7 +297,7 @@ export function WalletsManager() {
           </Field>
 
           <div className="md:col-span-2">
-            <p className="mb-2 text-sm font-medium">Preset colors</p>
+            <p className="mb-2 text-sm font-medium">{t("presetColors")}</p>
             <div className="flex flex-wrap gap-2">
               {presetColors.map((color) => (
                 <button
@@ -298,7 +310,7 @@ export function WalletsManager() {
                   }
                   style={{ backgroundColor: color }}
                   onClick={() => setValue("color", color, { shouldValidate: true })}
-                  aria-label={`Select ${color}`}
+                  aria-label={t("selectColor").replace("{color}", color)}
                 />
               ))}
             </div>
@@ -306,7 +318,7 @@ export function WalletsManager() {
 
           <label className="flex items-center gap-2 text-sm md:col-span-2">
             <input type="checkbox" {...register("isActive")} />
-            Active wallet
+            {t("activeWallet")}
           </label>
 
           <div className="md:col-span-2">
@@ -315,7 +327,7 @@ export function WalletsManager() {
               disabled={isSubmitting}
               className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {isSubmitting ? "Saving..." : editing ? "Update Wallet" : "Create Wallet"}
+              {isSubmitting ? t("saving") : editing ? t("updateWallet") : t("createWallet")}
             </button>
           </div>
         </form>

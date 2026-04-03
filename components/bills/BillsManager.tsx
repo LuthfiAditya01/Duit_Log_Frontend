@@ -6,34 +6,23 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { createBill, deleteBill, fetchBills, updateBill } from "@/lib/api/finance";
 import { formatCurrency } from "@/lib/format";
+import { useLocale } from "@/providers/LocaleProvider";
 import type { Bill } from "@/lib/types";
 
-const billSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  amount: z.number().positive("Amount must be greater than 0"),
-  dueDay: z.number().int().min(1).max(31),
-  frequency: z.enum(["MONTHLY", "YEARLY"]),
-  dueMonth: z.number().int().min(0).max(11).optional(),
-});
+function buildSchema(t: (key: string) => string) {
+  return z.object({
+    name: z.string().min(2, t("nameIsRequired")),
+    amount: z.number().positive(t("amountMustBeGreaterThanZero")),
+    dueDay: z.number().int().min(1).max(31),
+    frequency: z.enum(["MONTHLY", "YEARLY"]),
+    dueMonth: z.number().int().min(0).max(11).optional(),
+  });
+}
 
-type BillFormValues = z.infer<typeof billSchema>;
-
-const monthOptions = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+type BillFormValues = z.infer<ReturnType<typeof buildSchema>>;
 
 export function BillsManager() {
+  const { t, locale } = useLocale();
   const [bills, setBills] = useState<Bill[]>([]);
   const [editing, setEditing] = useState<Bill | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +36,7 @@ export function BillsManager() {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<BillFormValues>({
-    resolver: zodResolver(billSchema),
+    resolver: zodResolver(buildSchema(t)),
     defaultValues: {
       name: "",
       amount: 0,
@@ -66,11 +55,11 @@ export function BillsManager() {
     try {
       setBills(await fetchBills());
     } catch {
-      setError("Failed to load bills");
+      setError(t("failedToLoadBills"));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadBills();
@@ -102,6 +91,16 @@ export function BillsManager() {
     }
   }, [frequency, setValue]);
 
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) =>
+        new Intl.DateTimeFormat(locale, { month: "long" }).format(
+          new Date(2020, index, 1)
+        )
+      ),
+    [locale]
+  );
+
   const visibleBills = useMemo(() => (Array.isArray(bills) ? bills : []), [bills]);
 
   const onSubmit = async (values: BillFormValues) => {
@@ -132,7 +131,7 @@ export function BillsManager() {
   };
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading bills...</p>;
+    return <p className="text-sm text-muted">{t("billsLoading")}</p>;
   }
 
   if (error) {
@@ -144,27 +143,29 @@ export function BillsManager() {
       <section className="rounded-xl border border-border p-4">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Bills</h2>
+            <h2 className="text-lg font-semibold">{t("billsPage")}</h2>
             <p className="text-sm text-muted">
-              Manage recurring bills with monthly or yearly frequency
+              {t("manageRecurringBillsWithMonthlyOrYearlyFrequency")}
             </p>
           </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visibleBills.length === 0 ? (
-            <p className="text-sm text-muted">No bills found.</p>
+            <p className="text-sm text-muted">{t("noBillsFound")}</p>
           ) : (
             visibleBills.map((bill) => (
               <article key={bill._id} className="rounded-xl border border-border p-4">
                 <div className="mb-3 space-y-1">
                   <h3 className="font-semibold">{bill.name}</h3>
                   <p className="text-sm text-muted">
-                    {formatCurrency(bill.amount)} · Day {bill.dueDay} · {bill.frequency}
+                    {formatCurrency(bill.amount)} · {t("day")} {bill.dueDay} · {t(
+                      bill.frequency.toLowerCase()
+                    )}
                   </p>
                   {bill.frequency === "YEARLY" && typeof bill.dueMonth === "number" && (
                     <p className="text-sm text-muted">
-                      Month: {monthOptions[bill.dueMonth]}
+                      {t("month")}: {monthOptions[bill.dueMonth]}
                     </p>
                   )}
                 </div>
@@ -175,14 +176,14 @@ export function BillsManager() {
                     className="rounded-md border px-3 py-1 text-sm"
                     onClick={() => setEditing(bill)}
                   >
-                    Edit
+                    {t("edit")}
                   </button>
                   <button
                     type="button"
                     className="rounded-md border border-danger px-3 py-1 text-sm text-danger"
                     onClick={() => onDelete(bill._id)}
                   >
-                    Delete
+                    {t("delete")}
                   </button>
                 </div>
               </article>
@@ -195,11 +196,9 @@ export function BillsManager() {
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">
-              {editing ? "Edit Bill" : "Add Bill"}
+              {editing ? t("editBill") : t("addBill")}
             </h2>
-            <p className="text-sm text-muted">
-              Yearly bills require a specific month selection
-            </p>
+            <p className="text-sm text-muted">{t("yearlyBillsRequireASpecificMonthSelection")}</p>
           </div>
           {editing && (
             <button
@@ -207,13 +206,13 @@ export function BillsManager() {
               className="rounded-md border px-3 py-2 text-sm"
               onClick={() => setEditing(null)}
             >
-              Cancel edit
+              {t("cancelEditBill")}
             </button>
           )}
         </div>
 
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
-          <Field label="Name" error={errors.name?.message}>
+          <Field label={t("name")} error={errors.name?.message}>
             <input
               type="text"
               className="w-full rounded-md border bg-background px-3 py-2"
@@ -221,7 +220,7 @@ export function BillsManager() {
             />
           </Field>
 
-          <Field label="Amount" error={errors.amount?.message}>
+          <Field label={t("amount")} error={errors.amount?.message}>
             <input
               type="number"
               className="w-full rounded-md border bg-background px-3 py-2"
@@ -229,7 +228,7 @@ export function BillsManager() {
             />
           </Field>
 
-          <Field label="Due day" error={errors.dueDay?.message}>
+          <Field label={t("dueDay")} error={errors.dueDay?.message}>
             <input
               type="number"
               className="w-full rounded-md border bg-background px-3 py-2"
@@ -237,18 +236,18 @@ export function BillsManager() {
             />
           </Field>
 
-          <Field label="Frequency" error={errors.frequency?.message}>
+          <Field label={t("frequency")} error={errors.frequency?.message}>
             <select
               className="w-full rounded-md border bg-background px-3 py-2"
               {...register("frequency")}
             >
-              <option value="MONTHLY">Monthly</option>
-              <option value="YEARLY">Yearly</option>
+              <option value="MONTHLY">{t("monthly")}</option>
+              <option value="YEARLY">{t("yearly")}</option>
             </select>
           </Field>
 
           {frequency === "YEARLY" && (
-            <Field label="Due month" error={errors.dueMonth?.message}>
+            <Field label={t("dueMonth")} error={errors.dueMonth?.message}>
               <select
                 className="w-full rounded-md border bg-background px-3 py-2"
                 {...register("dueMonth", { valueAsNumber: true })}
@@ -268,7 +267,7 @@ export function BillsManager() {
               disabled={isSubmitting}
               className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {isSubmitting ? "Saving..." : editing ? "Update Bill" : "Create Bill"}
+              {isSubmitting ? t("saving") : editing ? t("updateBill") : t("createBill")}
             </button>
           </div>
         </form>

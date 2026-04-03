@@ -12,18 +12,22 @@ import {
   fetchWallets,
 } from "@/lib/api/finance";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useLocale } from "@/providers/LocaleProvider";
+import { openTransactionReceipt } from "../../lib/transaction-receipt";
 import type { Category, TransactionListItem, Wallet } from "@/lib/types";
 
-const schema = z.object({
-  amount: z.number().positive("Amount must be greater than 0"),
-  type: z.enum(["income", "expense"]),
-  category: z.string().min(1, "Select a category"),
-  wallet: z.string().min(1, "Select a wallet"),
-  description: z.string().optional(),
-  date: z.string().min(1, "Select a date"),
-});
+function buildSchema(t: (key: string) => string) {
+  return z.object({
+    amount: z.number().positive(t("amountMustBeGreaterThanZero")),
+    type: z.enum(["income", "expense"]),
+    category: z.string().min(1, t("selectCategory")),
+    wallet: z.string().min(1, t("selectWallet")),
+    description: z.string().optional(),
+    date: z.string().min(1, t("selectDate")),
+  });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof buildSchema>>;
 
 function currentPeriod() {
   const now = new Date();
@@ -42,8 +46,10 @@ function formatAmountInput(value: number) {
 
 export function TransactionsManager() {
   const { month: initialMonth, year: initialYear } = currentPeriod();
+  const { t } = useLocale();
   const [month, setMonth] = useState(initialMonth);
   const [year, setYear] = useState(initialYear);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [transactions, setTransactions] = useState<TransactionListItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -58,7 +64,7 @@ export function TransactionsManager() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(buildSchema(t)),
     defaultValues: {
       amount: 0,
       type: "expense",
@@ -85,11 +91,11 @@ export function TransactionsManager() {
       setCategories(categoryList);
       setWallets(walletList);
     } catch {
-      setError("Failed to load transactions module");
+      setError(t("failedToLoadTransactionsModule"));
     } finally {
       setIsLoading(false);
     }
-  }, [month, year]);
+  }, [month, t, year]);
 
   useEffect(() => {
     void loadData();
@@ -120,6 +126,7 @@ export function TransactionsManager() {
       description: "",
       date: values.date,
     });
+    setIsAddOpen(false);
     await loadData();
   };
 
@@ -129,7 +136,7 @@ export function TransactionsManager() {
   };
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading transactions...</p>;
+    return <p className="text-sm text-muted">{t("loadingTransactions")}</p>;
   }
 
   if (error) {
@@ -141,33 +148,43 @@ export function TransactionsManager() {
       <section className="rounded-xl border border-border p-4">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Transaction List</h2>
-            <p className="text-sm text-muted">Filter by month and year</p>
+            <h2 className="text-lg font-semibold">{t("transactionList")}</h2>
+            <p className="text-sm text-muted">{t("filterByMonthAndYear")}</p>
           </div>
-          <div className="flex gap-2 text-sm">
-            <select
-              className="rounded-md border bg-background px-2 py-1"
-              value={month}
-              onChange={(event) => setMonth(Number(event.target.value))}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md bg-primary cursor-pointer px-3 py-1.5 text-sm font-semibold text-white"
+              onClick={() => setIsAddOpen(true)}
             >
-              {Array.from({ length: 12 }, (_, index) => index + 1).map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <input
-              className="w-24 rounded-md border bg-background px-2 py-1"
-              type="number"
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-            />
+              + {t("addTransaction")}
+            </button>
           </div>
+        </div>
+
+        <div className="mb-4 flex gap-2 text-sm">
+          <select
+            className="rounded-md border bg-background px-2 py-1"
+            value={month}
+            onChange={(event) => setMonth(Number(event.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, index) => index + 1).map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <input
+            className="w-24 rounded-md border bg-background px-2 py-1"
+            type="number"
+            value={year}
+            onChange={(event) => setYear(Number(event.target.value))}
+          />
         </div>
 
         <div className="space-y-3">
           {transactions.length === 0 ? (
-            <p className="text-sm text-muted">No transactions found.</p>
+            <p className="text-sm text-muted">{t("noTransactionsFound")}</p>
           ) : (
             transactions.map((item) => (
               <div
@@ -196,10 +213,17 @@ export function TransactionsManager() {
                   </span>
                   <button
                     type="button"
+                    className="rounded-md border border-border px-3 py-1 text-sm"
+                    onClick={() => openTransactionReceipt(item)}
+                  >
+                    {t("printReceipt")}
+                  </button>
+                  <button
+                    type="button"
                     className="rounded-md border border-danger px-3 py-1 text-sm text-danger"
                     onClick={() => onDelete(item._id)}
                   >
-                    Delete
+                    {t("delete")}
                   </button>
                 </div>
               </div>
@@ -208,91 +232,112 @@ export function TransactionsManager() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border p-4">
-        <h2 className="mb-4 text-lg font-semibold">Add Transaction</h2>
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
-          <Field label="Type" error={errors.type?.message}>
-            <select className="w-full rounded-md border bg-background px-3 py-2" {...register("type")}>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-          </Field>
+      {isAddOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-4 sm:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">{t("addTransaction")}</h2>
+              <button
+                type="button"
+                className="rounded-md border border-border px-3 py-1 text-sm"
+                onClick={() => setIsAddOpen(false)}
+              >
+                {t("close")}
+              </button>
+            </div>
 
-          <Field label="Amount" error={errors.amount?.message}>
-            <Controller
-              control={control}
-              name="amount"
-              render={({ field }) => (
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">
-                    Rp
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="w-full rounded-md border bg-background py-2 pl-10 pr-3"
-                    value={formatAmountInput(field.value)}
-                    onBlur={field.onBlur}
-                    onChange={(event) => {
-                      const numericOnly = event.target.value.replace(/\D/g, "");
-                      const nextValue = numericOnly ? Number(numericOnly) : 0;
-                      field.onChange(nextValue);
-                    }}
-                  />
-                </div>
-              )}
-            />
-          </Field>
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
+              <Field label={t("type")} error={errors.type?.message}>
+                <select className="w-full rounded-md border bg-background px-3 py-2" {...register("type")}>
+                  <option value="expense">{t("expenseOption")}</option>
+                  <option value="income">{t("incomeOption")}</option>
+                </select>
+              </Field>
 
-          <Field label="Category" error={errors.category?.message}>
-            <select className="w-full rounded-md border bg-background px-3 py-2" {...register("category")}>
-              <option value="">Select category</option>
-              {filteredCategories.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+              <Field label={t("amount")} error={errors.amount?.message}>
+                <Controller
+                  control={control}
+                  name="amount"
+                  render={({ field }) => (
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">
+                        Rp
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="w-full rounded-md border bg-background py-2 pl-10 pr-3"
+                        value={formatAmountInput(field.value)}
+                        onBlur={field.onBlur}
+                        onChange={(event) => {
+                          const numericOnly = event.target.value.replace(/\D/g, "");
+                          const nextValue = numericOnly ? Number(numericOnly) : 0;
+                          field.onChange(nextValue);
+                        }}
+                      />
+                    </div>
+                  )}
+                />
+              </Field>
 
-          <Field label="Wallet" error={errors.wallet?.message}>
-            <select className="w-full rounded-md border bg-background px-3 py-2" {...register("wallet")}>
-              <option value="">Select wallet</option>
-              {wallets.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+              <Field label={t("category")} error={errors.category?.message}>
+                <select className="w-full rounded-md border bg-background px-3 py-2" {...register("category")}>
+                  <option value="">{t("selectCategory")}</option>
+                  {filteredCategories.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-          <Field label="Date" error={errors.date?.message}>
-            <input
-              type="date"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("date")}
-            />
-          </Field>
+              <Field label={t("wallet")} error={errors.wallet?.message}>
+                <select className="w-full rounded-md border bg-background px-3 py-2" {...register("wallet")}>
+                  <option value="">{t("selectWallet")}</option>
+                  {wallets.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-          <Field label="Description" error={errors.description?.message}>
-            <input
-              type="text"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              {...register("description")}
-            />
-          </Field>
+              <Field label={t("date")} error={errors.date?.message}>
+                <input
+                  type="date"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("date")}
+                />
+              </Field>
 
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {isSubmitting ? "Saving..." : "Save Transaction"}
-            </button>
+              <Field label={t("description")} error={errors.description?.message}>
+                <input
+                  type="text"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  {...register("description")}
+                />
+              </Field>
+
+              <div className="flex items-center justify-end gap-2 md:col-span-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-border cursor-pointer px-4 py-2 text-sm"
+                  onClick={() => setIsAddOpen(false)}
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSubmitting ? t("saving") : t("saveTransaction")}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </section>
+        </div>
+      ) : null}
     </div>
   );
 }

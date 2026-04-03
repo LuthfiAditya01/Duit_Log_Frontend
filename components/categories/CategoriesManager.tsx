@@ -10,16 +10,19 @@ import {
   fetchCategories,
   updateCategory,
 } from "@/lib/api/finance";
+import { useLocale } from "@/providers/LocaleProvider";
 import type { Category } from "@/lib/types";
 
-const categorySchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  type: z.enum(["expense", "income"]),
-  color: z.string().min(1, "Color is required"),
-  isVisible: z.boolean(),
-});
+function buildSchema(t: (key: string) => string) {
+  return z.object({
+    name: z.string().min(2, t("nameIsRequired")),
+    type: z.enum(["expense", "income"]),
+    color: z.string().min(1, t("colorIsRequired")),
+    isVisible: z.boolean(),
+  });
+}
 
-type CategoryFormValues = z.infer<typeof categorySchema>;
+type CategoryFormValues = z.infer<ReturnType<typeof buildSchema>>;
 
 const presetColors = [
   "#2563eb",
@@ -40,6 +43,7 @@ const presetColors = [
 ];
 
 export function CategoriesManager() {
+  const { t } = useLocale();
   const [categories, setCategories] = useState<Category[]>([]);
   const [filter, setFilter] = useState<"all" | "expense" | "income">("all");
   const [editing, setEditing] = useState<Category | null>(null);
@@ -54,7 +58,7 @@ export function CategoriesManager() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<CategoryFormValues>({
-    resolver: zodResolver(categorySchema),
+    resolver: zodResolver(buildSchema(t)),
     defaultValues: {
       name: "",
       type: "expense",
@@ -72,11 +76,11 @@ export function CategoriesManager() {
     try {
       setCategories(await fetchCategories());
     } catch {
-      setError("Failed to load categories");
+      setError(t("failedToLoadCategories"));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadCategories();
@@ -137,7 +141,7 @@ export function CategoriesManager() {
   };
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading categories...</p>;
+    return <p className="text-sm text-muted">{t("categoriesLoading")}</p>;
   }
 
   if (error) {
@@ -149,8 +153,8 @@ export function CategoriesManager() {
       <section className="rounded-xl border border-border p-4">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Categories</h2>
-            <p className="text-sm text-muted">Manage income and expense labels</p>
+            <h2 className="text-lg font-semibold">{t("categoriesPage")}</h2>
+            <p className="text-sm text-muted">{t("manageIncomeAndExpenseLabels")}</p>
           </div>
 
           <select
@@ -158,15 +162,15 @@ export function CategoriesManager() {
             value={filter}
             onChange={(event) => setFilter(event.target.value as typeof filter)}
           >
-            <option value="all">All</option>
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
+            <option value="all">{t("all")}</option>
+            <option value="expense">{t("expense")}</option>
+            <option value="income">{t("income")}</option>
           </select>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visibleCategories.length === 0 ? (
-            <p className="text-sm text-muted">No categories found.</p>
+            <p className="text-sm text-muted">{t("noCategoriesFound")}</p>
           ) : (
             visibleCategories.map((category) => (
               <article
@@ -183,7 +187,7 @@ export function CategoriesManager() {
                       <h3 className="font-semibold">{category.name}</h3>
                     </div>
                     <p className="text-sm text-muted capitalize">
-                      {category.type} · {category.isVisible ? "Visible" : "Hidden"}
+                      {t(category.type)} · {category.isVisible ? t("visible") : t("hidden")}
                     </p>
                   </div>
                 </div>
@@ -194,14 +198,14 @@ export function CategoriesManager() {
                     className="rounded-md border px-3 py-1 text-sm"
                     onClick={() => setEditing(category)}
                   >
-                    Edit
+                    {t("edit")}
                   </button>
                   <button
                     type="button"
                     className="rounded-md border border-danger px-3 py-1 text-sm text-danger"
                     onClick={() => onDelete(category._id)}
                   >
-                    Delete
+                    {t("delete")}
                   </button>
                 </div>
               </article>
@@ -214,10 +218,10 @@ export function CategoriesManager() {
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">
-              {editing ? "Edit Category" : "Add Category"}
+              {editing ? t("editCategory") : t("addCategory")}
             </h2>
             <p className="text-sm text-muted">
-              Choose a preset color or a custom hex value
+              {t("choosePresetColorOrAHexValue")}
             </p>
           </div>
           {editing && (
@@ -226,13 +230,13 @@ export function CategoriesManager() {
               className="rounded-md border px-3 py-2 text-sm"
               onClick={() => setEditing(null)}
             >
-              Cancel edit
+              {t("cancelEdit")}
             </button>
           )}
         </div>
 
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
-          <Field label="Name" error={errors.name?.message}>
+          <Field label={t("name")} error={errors.name?.message}>
             <input
               type="text"
               className="w-full rounded-md border bg-background px-3 py-2"
@@ -240,17 +244,17 @@ export function CategoriesManager() {
             />
           </Field>
 
-          <Field label="Type" error={errors.type?.message}>
+          <Field label={t("type")} error={errors.type?.message}>
             <select
               className="w-full rounded-md border bg-background px-3 py-2"
               {...register("type")}
             >
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
+              <option value="expense">{t("expenseOption")}</option>
+              <option value="income">{t("incomeOption")}</option>
             </select>
           </Field>
 
-          <Field label="Custom color" error={errors.color?.message}>
+          <Field label={t("customHexColor")} error={errors.color?.message}>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -266,7 +270,7 @@ export function CategoriesManager() {
           </Field>
 
           <div className="md:col-span-2">
-            <p className="mb-2 text-sm font-medium">Preset colors</p>
+            <p className="mb-2 text-sm font-medium">{t("presetColorsLabel")}</p>
             <div className="flex flex-wrap gap-2">
               {presetColors.map((color) => (
                 <button
@@ -279,7 +283,7 @@ export function CategoriesManager() {
                   }
                   style={{ backgroundColor: color }}
                   onClick={() => setValue("color", color, { shouldValidate: true })}
-                  aria-label={`Select ${color}`}
+                  aria-label={t("selectColor").replace("{color}", color)}
                 />
               ))}
             </div>
@@ -287,7 +291,7 @@ export function CategoriesManager() {
 
           <label className="flex items-center gap-2 text-sm md:col-span-2">
             <input type="checkbox" {...register("isVisible")} />
-            Visible category
+            {t("visibleCategory")}
           </label>
 
           <div className="md:col-span-2">
@@ -297,10 +301,10 @@ export function CategoriesManager() {
               className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
               {isSubmitting
-                ? "Saving..."
+                ? t("saving")
                 : editing
-                  ? "Update Category"
-                  : "Create Category"}
+                  ? t("updateCategory")
+                  : t("createCategory")}
             </button>
           </div>
         </form>

@@ -6,6 +6,8 @@ import { fetchTransactions } from "@/lib/api/finance";
 import { generateDashboardPdfBlob } from "@/lib/dashboard-pdf";
 import { calculateDashboardSummary } from "@/lib/dashboard";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useLocale } from "@/providers/LocaleProvider";
+import { openTransactionReceipt } from "../../lib/transaction-receipt";
 import type { TransactionListItem, User } from "@/lib/types";
 
 function currentPeriod() {
@@ -15,6 +17,7 @@ function currentPeriod() {
 
 export function DashboardClient() {
   const { month: initialMonth, year: initialYear } = currentPeriod();
+  const { t } = useLocale();
   const [user, setUser] = useState<User | null>(null);
   const [transactions, setTransactions] = useState<TransactionListItem[]>([]);
   const [month, setMonth] = useState(initialMonth);
@@ -31,14 +34,14 @@ export function DashboardClient() {
         me(),
         fetchTransactions(month, year),
       ]);
-      setUser(profile);
+      setUser(profile.data);
       setTransactions(list);
     } catch {
-      setError("Failed to load dashboard data");
+      setError(t("failedToLoadDashboardData"));
     } finally {
       setIsLoading(false);
     }
-  }, [month, year]);
+  }, [month, t, year]);
 
   useEffect(() => {
     void loadDashboard();
@@ -67,7 +70,7 @@ export function DashboardClient() {
         link.remove();
         setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
       } catch {
-        window.alert("Failed to export PDF. Please try again.");
+        window.alert(t("failedToLoadDashboardData"));
       }
       return;
     }
@@ -76,7 +79,7 @@ export function DashboardClient() {
       <!doctype html>
       <html>
         <head>
-          <title>Preparing PDF...</title>
+          <title>${t("exportPdf")}</title>
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <style>
             body {
@@ -103,7 +106,7 @@ export function DashboardClient() {
           </style>
         </head>
         <body>
-          <div class="shell"><div class="card"><strong>Generating PDF preview...</strong><div class="muted">Please wait a moment.</div></div></div>
+          <div class="shell"><div class="card"><strong>${t("exportPdf")}</strong><div class="muted">${t("loading")}</div></div></div>
         </body>
       </html>
     `);
@@ -138,7 +141,7 @@ export function DashboardClient() {
         <!doctype html>
         <html>
           <head>
-            <title>Export Failed</title>
+            <title>${t("exportPdf")}</title>
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <style>
               body {
@@ -171,9 +174,9 @@ export function DashboardClient() {
           </head>
           <body>
             <div class="card">
-              <h2>Failed to generate PDF preview</h2>
-              <p>Try again in a few seconds. If it still fails, reload dashboard and retry export.</p>
-              <button onclick="window.close()">Close this tab</button>
+              <h2>${t("failedToLoadDashboardData")}</h2>
+              <p>${t("loading")}</p>
+              <button onclick="window.close()">${t("close")}</button>
             </div>
           </body>
         </html>
@@ -183,7 +186,7 @@ export function DashboardClient() {
   }, [month, summary, transactions, user, year]);
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading dashboard...</p>;
+    return <p className="text-sm text-muted">{t("loadingDashboard")}</p>;
   }
 
   if (error) {
@@ -193,11 +196,11 @@ export function DashboardClient() {
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Balance" value={formatCurrency(user?.balance ?? 0)} />
-        <StatCard label="Income" value={formatCurrency(summary.income)} />
-        <StatCard label="Expense" value={formatCurrency(summary.expense)} />
+        <StatCard label={t("balance")} value={formatCurrency(user?.balance ?? 0)} />
+        <StatCard label={t("income")} value={formatCurrency(summary.income)} />
+        <StatCard label={t("expense")} value={formatCurrency(summary.expense)} />
         <StatCard
-          label="Net"
+          label={t("net")}
           value={formatCurrency(summary.net)}
           emphasis={summary.net >= 0 ? "positive" : "negative"}
         />
@@ -209,7 +212,7 @@ export function DashboardClient() {
           className="rounded-md border border-border bg-background px-4 py-2 text-sm font-medium"
           onClick={handleExportPdf}
         >
-          Export PDF
+          {t("exportPdf")}
         </button>
       </div>
 
@@ -217,8 +220,8 @@ export function DashboardClient() {
         <div className="rounded-xl border border-border p-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Recent Transactions</h2>
-              <p className="text-sm text-muted">Selected period</p>
+              <h2 className="text-lg font-semibold">{t("recentTransactions")}</h2>
+              <p className="text-sm text-muted">{t("selectedPeriod")}</p>
             </div>
             <div className="flex gap-2 text-sm">
               <select
@@ -243,7 +246,7 @@ export function DashboardClient() {
 
           <div className="space-y-3">
             {transactions.length === 0 ? (
-              <p className="text-sm text-muted">No transactions found.</p>
+              <p className="text-sm text-muted">{t("noTransactionsFound")}</p>
             ) : (
               transactions.map((item) => (
                 <article
@@ -259,16 +262,25 @@ export function DashboardClient() {
                       {item.description ? ` · ${item.description}` : ""}
                     </p>
                   </div>
-                  <span
-                    className={
-                      item.type === "income"
-                        ? "font-semibold text-success"
-                        : "font-semibold text-danger"
-                    }
-                  >
-                    {item.type === "income" ? "+" : "-"}
-                    {formatCurrency(item.amount)}
-                  </span>
+                  <div className="flex flex-col items-end gap-2">
+                    <span
+                      className={
+                        item.type === "income"
+                          ? "font-semibold text-success"
+                          : "font-semibold text-danger"
+                      }
+                    >
+                      {item.type === "income" ? "+" : "-"}
+                      {formatCurrency(item.amount)}
+                    </span>
+                    <button
+                      type="button"
+                      className="rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground"
+                      onClick={() => openTransactionReceipt(item)}
+                    >
+                      {t("printReceipt")}
+                    </button>
+                  </div>
                 </article>
               ))
             )}
@@ -276,10 +288,10 @@ export function DashboardClient() {
         </div>
 
         <div className="rounded-xl border border-border p-4">
-          <h2 className="mb-4 text-lg font-semibold">Expense Breakdown</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("expenseBreakdown")}</h2>
           <div className="space-y-3">
             {Object.keys(summary.categoryBreakdown).length === 0 ? (
-              <p className="text-sm text-muted">No expense data for this period.</p>
+              <p className="text-sm text-muted">{t("noExpenseDataForThisPeriod")}</p>
             ) : (
               Object.entries(summary.categoryBreakdown)
                 .sort((a, b) => b[1] - a[1])
@@ -314,6 +326,7 @@ function StatCard({
   value: string;
   emphasis?: "positive" | "negative";
 }) {
+  const { t } = useLocale();
   return (
     <div className="rounded-xl border border-border p-4">
       <p className="text-sm text-muted">{label}</p>
@@ -321,7 +334,7 @@ function StatCard({
         className={
           emphasis === "positive"
             ? "mt-2 text-2xl font-semibold text-success"
-            : emphasis === "negative"
+            : emphasis === "negative" || label.toLowerCase() === t("expense").toLowerCase()
               ? "mt-2 text-2xl font-semibold text-danger"
               : "mt-2 text-2xl font-semibold"
         }
